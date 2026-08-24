@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ book.Title }} - Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script>
+        if (localStorage.getItem("theme") === "dark") { document.documentElement.classList.add("dark-mode"); }
+    </script>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold fs-3" href="/">📚 Book Analytics</a>
+        <a href="/" class="btn btn-light"><i class="fa-solid fa-arrow-left"></i> Back to Dashboard</a>
+    </div>
+</nav>
+
+<div class="container mt-5 mb-5">
+    <div class="card shadow-lg" style="border-radius: 20px; overflow: hidden; border: none;">
+        <div class="row g-0">
+            <!-- Left Side Cover Graphic -->
+            <div class="col-md-4 p-4">
+                <div class="book-cover-placeholder">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+            </div>
+            <!-- Right Side Information -->
+            <div class="col-md-8 p-5 d-flex flex-column justify-content-center">
+                <span class="text-muted mb-2">Book ID: #{{ id }}</span>
+                <h1 class="display-5 fw-bold mb-3">{{ book.Title }}</h1>
+                
+                <div class="mb-4">
+                    {% set star_map = {'One': 1, 'Two': 2, 'Three': 3, 'Four': 4, 'Five': 5} %}
+                    {% set stars = star_map.get(book.Rating, 0) %}
+                    <span class="fs-4 text-warning me-2">
+                        {% for _ in range(stars) %}★{% endfor %}{% for _ in range(5 - stars) %}☆{% endfor %}
+                    </span>
+                    <span class="badge bg-secondary fs-6">{{ book.Rating }} Star Rating</span>
+                </div>
+
+                <h2 class="text-success fw-bold mb-4" style="font-size: 3rem;">£{{ book.Price }}</h2>
+                
+                <p class="fs-5 mb-4">
+                    <i class="fa-solid fa-box text-primary"></i> 
+                    Availability: 
+                    <span class="badge bg-success ms-2 p-2 fs-6">{{ book.Availability }}</span>
+                </p>
+
+                <hr class="mb-4">
+                
+                <div class="d-flex gap-3 mt-auto">
+                    <a href="/random" class="btn btn-danger btn-lg"><i class="fa-solid fa-dice"></i> View Random Book</a>
+                    <a href="/" class="btn btn-outline-primary btn-lg">Back to Search</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

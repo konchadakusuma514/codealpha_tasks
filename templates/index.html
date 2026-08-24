@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Analytics Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- NEW: Confetti Animation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Script to immediately load Dark Mode -->
+    <script>
+        if (localStorage.getItem("theme") === "dark") { document.documentElement.classList.add("dark-mode"); }
+    </script>
+
+    <!-- NEW: Internal styles for the new features so we don't break your style.css -->
+    <style>
+        #pageLoader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #eef3f8; z-index: 9999; display: flex;
+            align-items: center; justify-content: center; flex-direction: column;
+            transition: opacity 0.6s ease;
+        }
+        html.dark-mode #pageLoader { background: #121212; color: white; }
+        .spinner-border { width: 3rem; height: 3rem; border-width: 0.3rem; }
+        .hero-banner {
+            background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+            color: white; border-radius: 18px; padding: 2rem; position: relative;
+        }
+        .copy-icon { cursor: pointer; transition: 0.2s; }
+        .copy-icon:hover { color: #0d6efd !important; transform: scale(1.2); }
+        .bookmark-btn.active i { font-weight: 900; color: #dc3545; }
+        #bookmarkFab {
+            position: fixed; top: 50%; left: 0; transform: translateY(-50%);
+            z-index: 1000; border-radius: 0 10px 10px 0; padding: 15px 10px;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.2);
+        }
+        html.dark-mode .offcanvas { background-color: #1e1e1e; color: white; }
+    </style>
+</head>
+<body>
+
+<!-- ================= NEW: FULL PAGE LOADER ================= -->
+<div id="pageLoader">
+    <div class="spinner-border text-primary mb-3" role="status"></div>
+    <h3 class="fw-bold">Loading Data...</h3>
+    <p class="text-muted">Analyzing your book dataset</p>
+</div>
+
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow sticky-top">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold fs-3" href="/">📚 Book Analytics</a>
+        
+        <!-- NEW: Live Clock Badge -->
+        <span class="badge bg-light text-dark ms-2 py-2 px-3 fs-6 d-none d-lg-inline-block shadow-sm" id="liveClock">
+            <i class="fa-regular fa-clock"></i> 00:00:00
+        </span>
+
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+            <div>
+                <!-- UPDATED: Surprise Me Button with Confetti Hook -->
+                <a href="#" onclick="fireConfettiAndRedirect(event, '/random')" class="btn btn-danger me-2 shadow-sm" data-bs-toggle="tooltip" title="Discover a random book!">
+                    <i class="fa-solid fa-dice"></i> Surprise Me
+                </a>
+                <a href="/download" class="btn btn-success me-2 dl-btn shadow-sm" data-bs-toggle="tooltip" title="Download as CSV">
+                    <i class="fa-solid fa-file-csv"></i> CSV
+                </a>
+                <a href="/download_excel" class="btn btn-warning me-2 dl-btn shadow-sm" data-bs-toggle="tooltip" title="Download as Excel">
+                    <i class="fa-solid fa-file-excel"></i> Excel
+                </a>
+                <a href="/download_json" class="btn btn-secondary me-2 dl-btn shadow-sm" data-bs-toggle="tooltip" title="Download as JSON">
+                    <i class="fa-solid fa-file-code"></i> JSON
+                </a>
+                <a href="/charts" class="btn btn-info me-2 shadow-sm"><i class="fa-solid fa-chart-pie"></i> Charts</a>
+                <a href="/about" class="btn btn-light me-2 shadow-sm"><i class="fa-solid fa-circle-info"></i> About</a>
+                <button class="btn btn-dark border border-secondary shadow-sm" onclick="toggleDarkMode()" id="darkModeBtn">
+                    🌙 Dark Mode
+                </button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- ================= NEW: FLOATING BOOKMARK DRAWER BUTTON ================= -->
+<button class="btn btn-danger" id="bookmarkFab" data-bs-toggle="offcanvas" data-bs-target="#bookmarkOffcanvas" title="View Bookmarks">
+    <i class="fa-solid fa-heart"></i>
+</button>
+
+<!-- NEW: OFFCANVAS SIDEBAR FOR BOOKMARKS -->
+<div class="offcanvas offcanvas-start shadow" tabindex="-1" id="bookmarkOffcanvas" aria-labelledby="bookmarkOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title fw-bold" id="bookmarkOffcanvasLabel"><i class="fa-solid fa-bookmark text-danger"></i> Saved Books</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <p class="text-muted">Books you bookmark will appear here. They are saved in your browser's local storage!</p>
+        <ul class="list-group" id="bookmarkList">
+            <!-- Bookmarks populated via JS -->
+            <li class="list-group-item text-center text-muted border-0">No bookmarks yet.</li>
+        </ul>
+        <button class="btn btn-outline-danger w-100 mt-4" onclick="clearBookmarks()">Clear All Bookmarks</button>
+    </div>
+</div>
+
+<!-- ================= DASHBOARD ================= -->
+<div class="container mt-4">
+
+    <!-- NEW: HERO BANNER -->
+    <div class="hero-banner shadow mb-4 alert alert-dismissible fade show" role="alert">
+        <div class="row align-items-center">
+            <div class="col-md-9">
+                <h2 class="fw-bold"><i class="fa-solid fa-hand-sparkles"></i> Welcome to the Data Hub!</h2>
+                <p class="mb-0 fs-5">Explore, filter, and analyze thousands of web-scraped books in real-time. Use the tools below to extract meaningful insights.</p>
+            </div>
+            <div class="col-md-3 text-end d-none d-md-block">
+                <i class="fa-solid fa-chart-column fa-4x opacity-50"></i>
+            </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <!-- EXISTING STATS CARDS -->
+    <div class="row g-3">
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-primary text-white"><div class="card-body"><h6>Total Books</h6><h2>{{total_books}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-success text-white"><div class="card-body"><h6>Average Price</h6><h2>£{{average_price}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-danger text-white"><div class="card-body"><h6>Highest Price</h6><h2>£{{highest_price}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-warning text-dark"><div class="card-body"><h6>Lowest Price</h6><h2>£{{lowest_price}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-info text-dark"><div class="card-body"><h6>Five Star Books</h6><h2>{{five_star}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-secondary text-white"><div class="card-body"><h6>Four Star Books</h6><h2>{{four_star}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-dark text-white border border-secondary"><div class="card-body"><h6>In Stock</h6><h2>{{in_stock}}</h2></div></div></div>
+        <div class="col-lg-3 col-md-6"><div class="card dashboard-card bg-success text-white"><div class="card-body"><h6>Average Rating</h6><h2>{{average_rating}}</h2></div></div></div>
+    </div>
+
+    <!-- ================= SEARCH ================= -->
+    <div class="card shadow mt-4">
+        <div class="card-body">
+            <form method="GET" action="/">
+                <div class="row g-2">
+                    <div class="col-md-2"><input type="text" class="form-control shadow-sm" placeholder="Search Book" name="search" value="{{search}}"></div>
+                    <div class="col-md-2">
+                        <select class="form-select shadow-sm" name="rating">
+                            <option value="">All Ratings</option>
+                            <option {% if rating=="One" %}selected{% endif %}>One</option>
+                            <option {% if rating=="Two" %}selected{% endif %}>Two</option>
+                            <option {% if rating=="Three" %}selected{% endif %}>Three</option>
+                            <option {% if rating=="Four" %}selected{% endif %}>Four</option>
+                            <option {% if rating=="Five" %}selected{% endif %}>Five</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><input type="number" step="0.01" name="min_price" placeholder="Min Price" class="form-control shadow-sm" value="{{min_price}}"></div>
+                    <div class="col-md-2"><input type="number" step="0.01" name="max_price" placeholder="Max Price" class="form-control shadow-sm" value="{{max_price}}"></div>
+                    <div class="col-md-2">
+                        <select class="form-select shadow-sm" name="sort">
+                            <option value="">Sort By</option>
+                            <option value="low" {% if sort=="low" %}selected{% endif %}>Low → High</option>
+                            <option value="high" {% if sort=="high" %}selected{% endif %}>High → Low</option>
+                            <option value="title" {% if sort=="title" %}selected{% endif %}>A → Z</option>
+                            <option value="rating" {% if sort=="rating" %}selected{% endif %}>Rating</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary w-50 shadow-sm">Go</button>
+                            <a href="/" class="btn btn-secondary w-50 shadow-sm">Clear</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= TABLE ================= -->
+    <div class="table-responsive mt-4 shadow-sm" style="border-radius: 18px;">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr><th>#</th><th>Book Title</th><th>Price</th><th>Rating</th><th>Availability</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+                {% if books|length == 0 %}
+                <tr><td colspan="6" class="text-center py-5 fs-5 text-muted"><i class="fa-solid fa-magnifying-glass fa-2x mb-3 d-block"></i> No books found matching your criteria.</td></tr>
+                {% endif %}
+                {% for book in books %}
+                <tr>
+                    <td>{{book.ID}}</td>
+                    <td class="fw-bold">
+                        {{book.Title}}
+                        <!-- NEW: Copy to Clipboard Icon -->
+                        <i class="fa-regular fa-copy ms-2 text-secondary copy-icon" onclick="copyToClipboard('{{book.Title|replace("'", "\\'")|replace('"', '&quot;')}}')" title="Copy Title"></i>
+                    </td>
+                    <td class="text-success fw-bold fs-5">£{{book.Price}}</td>
+                    <td>
+                        {% set star_map = {'One': 1, 'Two': 2, 'Three': 3, 'Four': 4, 'Five': 5} %}
+                        {% set stars = star_map.get(book.Rating, 0) %}
+                        <span class="text-warning fs-5">
+                            {% for _ in range(stars) %}★{% endfor %}{% for _ in range(5 - stars) %}☆{% endfor %}
+                        </span>
+                    </td>
+                    <td><span class="badge bg-success p-2"><i class="fa-solid fa-check-circle"></i> {{book.Availability}}</span></td>
+                    <td>
+                        <div class="d-flex gap-2">
+                            <a href="/book/{{book.ID}}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-bold">View Details</a>
+                            <!-- NEW: Gamification Bookmark Button -->
+                            <button class="btn btn-outline-danger btn-sm rounded-circle bookmark-btn" data-id="{{book.ID}}" data-title="{{book.Title|replace("'", "\\'")|replace('"', '&quot;')}}" onclick="toggleBookmark(this)" title="Save to Favorites">
+                                <i class="fa-regular fa-heart"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ================= PAGINATION ================= -->
+    {% if total_pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center shadow-sm">
+            {% if page > 1 %}
+            <li class="page-item"><a class="page-link" href="/?page={{page-1}}&search={{search}}&rating={{rating}}&sort={{sort}}&min_price={{min_price}}&max_price={{max_price}}"><i class="fa-solid fa-chevron-left"></i> Previous</a></li>
+            {% endif %}
+            {% set start_page = page - 2 if page - 2 > 0 else 1 %}
+            {% set end_page = page + 2 if page + 2 <= total_pages else total_pages %}
+            {% for p in range(start_page, end_page + 1) %}
+            <li class="page-item {% if p==page %}active{% endif %}"><a class="page-link" href="/?page={{p}}&search={{search}}&rating={{rating}}&sort={{sort}}&min_price={{min_price}}&max_price={{max_price}}">{{p}}</a></li>
+            {% endfor %}
+            {% if page < total_pages %}
+            <li class="page-item"><a class="page-link" href="/?page={{page+1}}&search={{search}}&rating={{rating}}&sort={{sort}}&min_price={{min_price}}&max_price={{max_price}}">Next <i class="fa-solid fa-chevron-right"></i></a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <!-- ================= QUICK ACTIONS ================= -->
+    <div class="row mt-5 mb-5">
+        <div class="col-md-4 mb-3">
+            <div class="card shadow text-center h-100 dashboard-card border-top border-info border-4">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h4 class="text-info"><i class="fa-solid fa-chart-line fa-2x mb-2 d-block"></i> Charts</h4>
+                    <p>Visualize book statistics dynamically.</p>
+                    <a href="/charts" class="btn btn-outline-info mt-auto fw-bold">Open Analytics</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow text-center h-100 dashboard-card border-top border-success border-4">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h4 class="text-success"><i class="fa-solid fa-cloud-arrow-down fa-2x mb-2 d-block"></i> Export Data</h4>
+                    <p>Download your full scraped dataset.</p>
+                    <div class="d-flex justify-content-center gap-2 mt-auto">
+                        <a href="/download_excel" class="btn btn-success dl-btn"><i class="fa-solid fa-file-excel"></i></a>
+                        <a href="/download" class="btn btn-primary dl-btn"><i class="fa-solid fa-file-csv"></i></a>
+                        <a href="/download_json" class="btn btn-secondary dl-btn"><i class="fa-solid fa-file-code"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow text-center h-100 dashboard-card border-top border-dark border-4">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <h4 class="text-dark"><i class="fa-solid fa-code fa-2x mb-2 d-block"></i> About</h4>
+                    <p>Learn more about this project & developer.</p>
+                    <a href="/about" class="btn btn-outline-dark mt-auto fw-bold">View Details</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ================= TOAST NOTIFICATIONS ================= -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+  <!-- Download Toast -->
+  <div id="downloadToast" class="toast align-items-center text-bg-success border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body fw-bold fs-6"><i class="fa-solid fa-circle-check fa-lg me-2"></i> Your download is starting!</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+  <!-- System/Copy Toast -->
+  <div id="systemToast" class="toast align-items-center text-bg-primary border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body fw-bold fs-6" id="systemToastMsg"><i class="fa-solid fa-bell fa-lg me-2"></i> Notification</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= FOOTER ================= -->
+<footer class="bg-dark text-white pt-4 pb-2 mt-auto border-top border-primary border-3">
+    <div class="container text-center">
+        <h4>📚 Book Analytics Dashboard</h4>
+        <p class="text-muted">Professional Web Scraping Project</p>
+        <p>Developed by <b class="text-info">Konchada Kusuma</b></p>
+        <p class="mb-0 small"><i class="fa-solid fa-graduation-cap"></i> B.Tech Computer Science Engineering | CodeAlpha Internship 2026</p>
+    </div>
+</footer>
+
+<button onclick="topFunction()" id="topBtn" title="Go to Top"><i class="fa-solid fa-arrow-up"></i></button>
+
+<!-- ================= SCRIPTS ================= -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 1. PAGE LOADER LOGIC
+    window.addEventListener('load', function() {
+        const loader = document.getElementById('pageLoader');
+        loader.style.opacity = '0';
+        setTimeout(() => { loader.style.display = 'none'; }, 600);
+    });
+
+    // 2. LIVE CLOCK LOGIC
+    function updateClock() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second:'2-digit' });
+        document.getElementById('liveClock').innerHTML = `<i class="fa-regular fa-clock"></i> ${timeString}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // Tooltips & Scroll to Top
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) { return new bootstrap.Tooltip(tooltipTriggerEl) })
+
+    let topbutton = document.getElementById("topBtn");
+    window.onscroll = function() {
+        if(document.body.scrollTop > 200 || document.documentElement.scrollTop > 200){ topbutton.style.display = "block"; }
+        else { topbutton.style.display = "none"; }
+    };
+    function topFunction(){ document.body.scrollTop = 0; document.documentElement.scrollTop = 0; }
+
+    // Dark Mode
+    function toggleDarkMode(){
+        document.documentElement.classList.toggle("dark-mode");
+        if(document.documentElement.classList.contains("dark-mode")){
+            localStorage.setItem("theme", "dark");
+            document.getElementById("darkModeBtn").innerHTML = "☀️ Light Mode";
+        } else {
+            localStorage.setItem("theme", "light");
+            document.getElementById("darkModeBtn").innerHTML = "🌙 Dark Mode";
+        }
+    }
+    window.onload = function() {
+        if (localStorage.getItem("theme") === "dark") { document.getElementById("darkModeBtn").innerHTML = "☀️ Light Mode"; }
+        renderBookmarks(); // Load bookmarks on start
+    }
+
+    // Download Toast Notifications
+    const dlButtons = document.querySelectorAll('.dl-btn');
+    const dlToastElement = document.getElementById('downloadToast');
+    const dlToast = new bootstrap.Toast(dlToastElement, { delay: 3000 });
+    dlButtons.forEach(btn => { btn.addEventListener('click', () => { dlToast.show(); }); });
+
+    // System Toast Function
+    function showSystemToast(message, icon = "circle-check") {
+        document.getElementById('systemToastMsg').innerHTML = `<i class="fa-solid fa-${icon} fa-lg me-2"></i> ${message}`;
+        new bootstrap.Toast(document.getElementById('systemToast'), { delay: 3000 }).show();
+    }
+
+    // 3. COPY TO CLIPBOARD LOGIC
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            showSystemToast('Copied: "' + text + '"', 'clipboard-check');
+        });
+    }
+
+    // 4. CONFETTI SURPRISE LOGIC
+    function fireConfettiAndRedirect(event, url) {
+        event.preventDefault(); // Stop instant redirect
+        // Fire Confetti
+        var duration = 1500;
+        var end = Date.now() + duration;
+        (function frame() {
+            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 } });
+            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 } });
+            if (Date.now() < end) { requestAnimationFrame(frame); }
+        }());
+        // Redirect after animation
+        setTimeout(() => { window.location.href = url; }, 800);
+    }
+
+    // 5. LOCALSTORAGE GAMIFICATION (BOOKMARKS)
+    let savedBooks = JSON.parse(localStorage.getItem('book_bookmarks')) || [];
+
+    function toggleBookmark(btnElement) {
+        const bookId = btnElement.getAttribute('data-id');
+        const bookTitle = btnElement.getAttribute('data-title');
+        const icon = btnElement.querySelector('i');
+
+        const existingIndex = savedBooks.findIndex(b => b.id === bookId);
+        
+        if(existingIndex > -1) {
+            // Remove bookmark
+            savedBooks.splice(existingIndex, 1);
+            btnElement.classList.remove('active', 'btn-danger');
+            btnElement.classList.add('btn-outline-danger');
+            icon.classList.replace('fa-solid', 'fa-regular');
+            showSystemToast('Removed from favorites', 'heart-crack');
+        } else {
+            // Add bookmark
+            savedBooks.push({ id: bookId, title: bookTitle });
+            btnElement.classList.remove('btn-outline-danger');
+            btnElement.classList.add('active', 'btn-danger');
+            icon.classList.replace('fa-regular', 'fa-solid');
+            // Confetti pop on heart
+            confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 }, colors: ['#dc3545', '#ffc107'] });
+            showSystemToast('Added to favorites!', 'heart');
+        }
+        
+        localStorage.setItem('book_bookmarks', JSON.stringify(savedBooks));
+        renderBookmarks();
+    }
+
+    function renderBookmarks() {
+        // Sync table buttons UI
+        document.querySelectorAll('.bookmark-btn').forEach(btn => {
+            const id = btn.getAttribute('data-id');
+            const icon = btn.querySelector('i');
+            if(savedBooks.some(b => b.id === id)) {
+                btn.classList.add('active', 'btn-danger');
+                btn.classList.remove('btn-outline-danger');
+                icon.classList.replace('fa-regular', 'fa-solid');
+            } else {
+                btn.classList.remove('active', 'btn-danger');
+                btn.classList.add('btn-outline-danger');
+                icon.classList.replace('fa-solid', 'fa-regular');
+            }
+        });
+
+        // Sync Offcanvas List
+        const listEl = document.getElementById('bookmarkList');
+        if(savedBooks.length === 0) {
+            listEl.innerHTML = '<li class="list-group-item text-center text-muted border-0"><i class="fa-solid fa-box-open fa-2x mb-2 d-block"></i>No bookmarks yet.</li>';
+        } else {
+            listEl.innerHTML = savedBooks.map(b => `
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="text-truncate" style="max-width: 200px;">${b.title}</span>
+                    <a href="/book/${b.id}" class="btn btn-sm btn-primary rounded-pill">View</a>
+                </li>
+            `).join('');
+        }
+    }
+
+    function clearBookmarks() {
+        if(confirm("Are you sure you want to clear all your saved books?")) {
+            savedBooks = [];
+            localStorage.removeItem('book_bookmarks');
+            renderBookmarks();
+            showSystemToast('Bookmarks cleared', 'trash');
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - Charts</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Plotly.js for interactive charts -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+
+    <!-- Script to immediately load Dark Mode -->
+    <script>
+        if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.classList.add("dark-mode");
+        }
+    </script>
+</head>
+
+<body>
+<!-- ================= NAVBAR ================= -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold fs-3" href="/">
+            📊 Analytics Dashboard
+        </a>
+        <div class="d-flex">
+            <a href="/" class="btn btn-light me-2 fw-bold">Back to Home</a>
+            <button class="btn btn-dark border border-secondary" onclick="toggleDarkMode()" id="darkModeBtn">
+                🌙 Dark Mode
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- ================= CHARTS CONTAINER ================= -->
+<div class="container mt-4 mb-5">
+    
+    <!-- NEW ROW: DYNAMIC INSIGHTS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card bg-success text-white shadow-sm dashboard-card h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fa-solid fa-star"></i> Most Common Rating</h5>
+                    <p class="card-text fs-6 mt-2">The majority of books in this dataset have a <strong>{{ most_common_rating }}</strong> Star rating.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white shadow-sm dashboard-card h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fa-solid fa-gem"></i> Most Expensive</h5>
+                    <p class="card-text fs-6 mt-2">The highest priced book is <strong>"{{ expensive_book }}"</strong> at £{{ highest_price }}.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark shadow-sm dashboard-card h-100 border-0">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fa-solid fa-tag"></i> Most Affordable</h5>
+                    <p class="card-text fs-6 mt-2">The cheapest book available is <strong>"{{ cheapest_book }}"</strong> at £{{ lowest_price }}.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 1: Existing Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Rating Distribution
+                </div>
+                <div class="card-body">
+                    <div id="ratingPieChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Rating Bar Chart
+                </div>
+                <div class="card-body">
+                    <div id="ratingBarChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Existing Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Price Distribution (Histogram)
+                </div>
+                <div class="card-body">
+                    <div id="priceHistogram" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Average Price by Rating
+                </div>
+                <div class="card-body">
+                    <div id="avgPriceRatingChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 3: Existing Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Stock Availability
+                </div>
+                <div class="card-body">
+                    <div id="availabilityDonut" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card">
+                <div class="card-header bg-transparent border-bottom fs-5 fw-bold text-secondary">
+                    Top 10 Most Expensive Books
+                </div>
+                <div class="card-body">
+                    <div id="topExpensiveChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 4: Animated Charts -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card border-info">
+                <div class="card-header bg-info text-dark border-bottom fs-5 fw-bold">
+                    <i class="fa-solid fa-play"></i> Auto-Playing Bubble Chart
+                </div>
+                <div class="card-body">
+                    <div id="animatedBubbleChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card border-danger">
+                <div class="card-header bg-danger text-white border-bottom fs-5 fw-bold">
+                    <i class="fa-solid fa-play"></i> Auto-Drawing Scatter Plot
+                </div>
+                <div class="card-body">
+                    <div id="animatedScatterChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW ROW 5: ADVANCED VISUALIZATIONS -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card border-warning">
+                <div class="card-header bg-warning text-dark border-bottom fs-5 fw-bold">
+                    <i class="fa-solid fa-cube"></i> 3D Scatter Plot (Interactive)
+                </div>
+                <div class="card-body p-0">
+                    <div id="scatter3dChart" style="width:100%; height:420px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100 dashboard-card border-success">
+                <div class="card-header bg-success text-white border-bottom fs-5 fw-bold">
+                    <i class="fa-solid fa-box-open"></i> Price Distribution Box Plot
+                </div>
+                <div class="card-body">
+                    <div id="boxPlotChart" style="width:100%; height:400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================= SCRIPTS & PLOTLY LOGIC ================= -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // --------------------------------------------------------
+    // Dark Mode Toggle Logic
+    // --------------------------------------------------------
+    function toggleDarkMode(){
+        document.documentElement.classList.toggle("dark-mode");
+        if(document.documentElement.classList.contains("dark-mode")){
+            localStorage.setItem("theme", "dark");
+            document.getElementById("darkModeBtn").innerHTML = "☀️ Light Mode";
+        } else {
+            localStorage.setItem("theme", "light");
+            document.getElementById("darkModeBtn").innerHTML = "🌙 Dark Mode";
+        }
+        location.reload(); 
+    }
+
+    window.onload = function() {
+        if (localStorage.getItem("theme") === "dark") {
+            document.getElementById("darkModeBtn").innerHTML = "☀️ Light Mode";
+        }
+    }
+
+    const isDark = localStorage.getItem("theme") === "dark";
+    const fontColor = isDark ? '#e0e0e0' : '#333';
+    
+    const sharedLayout = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: fontColor },
+        margin: { t: 40, b: 40, l: 40, r: 40 }
+    };
+
+    // --------------------------------------------------------
+    // STATIC CHARTS (Your existing charts, untouched)
+    // --------------------------------------------------------
+    const ratingData = {{ rating_counts | tojson }};
+    const ratingLabels = Object.keys(ratingData);
+    const ratingValues = Object.values(ratingData);
+
+    Plotly.newPlot('ratingPieChart', [{
+        values: ratingValues, labels: ratingLabels, type: 'pie', textinfo: 'label+percent',
+        marker: { colors: ['#0d6efd', '#198754', '#dc3545', '#ffc107', '#0dcaf0'] }
+    }], sharedLayout, {responsive: true});
+
+    Plotly.newPlot('ratingBarChart', [{
+        x: ratingLabels, y: ratingValues, type: 'bar', marker: { color: '#0d6efd' }
+    }], { ...sharedLayout, title: 'Books by Rating', xaxis: { title: 'Star Rating' }, yaxis: { title: 'Number of Books', gridcolor: isDark ? '#444' : '#e5e5e5' } }, {responsive: true});
+
+    const allPrices = {{ all_prices | tojson }};
+    Plotly.newPlot('priceHistogram', [{
+        x: allPrices, type: 'histogram', marker: { color: '#198754' }, opacity: 0.7
+    }], { ...sharedLayout, title: 'Distribution of Book Prices', xaxis: { title: 'Price (£)' }, yaxis: { title: 'Frequency', gridcolor: isDark ? '#444' : '#e5e5e5' } }, {responsive: true});
+
+    const avgPriceData = {{ avg_price_by_rating | tojson }};
+    Plotly.newPlot('avgPriceRatingChart', [{
+        x: Object.keys(avgPriceData), y: Object.values(avgPriceData), type: 'bar', marker: { color: '#ffc107' }
+    }], { ...sharedLayout, title: 'Average Price per Star Rating', xaxis: { title: 'Star Rating' }, yaxis: { title: 'Avg Price (£)', gridcolor: isDark ? '#444' : '#e5e5e5' } }, {responsive: true});
+
+    const availData = {{ availability_counts | tojson }};
+    Plotly.newPlot('availabilityDonut', [{
+        values: Object.values(availData), labels: Object.keys(availData), type: 'pie', hole: .4, marker: { colors: ['#20c997', '#dc3545'] }
+    }], { ...sharedLayout, title: 'Stock Status' }, {responsive: true});
+
+    const topTitles = {{ top_titles | tojson }};
+    const topPrices = {{ top_prices | tojson }};
+    topTitles.reverse();
+    topPrices.reverse();
+    const shortTitles = topTitles.map(title => title.length > 25 ? title.substring(0,25) + '...' : title);
+
+    Plotly.newPlot('topExpensiveChart', [{
+        x: topPrices, y: shortTitles, type: 'bar', orientation: 'h', marker: { color: '#dc3545' }, text: topPrices.map(String), textposition: 'auto', hovertext: topTitles 
+    }], { ...sharedLayout, margin: { t: 40, b: 40, l: 150, r: 40 }, xaxis: { title: 'Price (£)', gridcolor: isDark ? '#444' : '#e5e5e5' } }, {responsive: true});
+
+    // --------------------------------------------------------
+    // ANIMATED CHARTS (Existing untouched)
+    // --------------------------------------------------------
+    const allTitlesFull = {{ all_titles | tojson }};
+    const allRatingsFull = {{ all_ratings | tojson }};
+    
+    const numFrames = 15;
+    const bubbleFrames = [];
+    const scatterFrames = [];
+
+    for(let f = 0; f < numFrames; f++) {
+        let bX = [], bY = [], bText = [], bSize = [];
+        
+        for(let i = 0; i < allPrices.length; i++) {
+            if(i % numFrames === f) {
+                bX.push(allRatingsFull[i] + (Math.random() * 0.4 - 0.2)); 
+                bY.push(allPrices[i]);
+                bText.push(allTitlesFull[i]);
+                bSize.push(Math.max(10, allPrices[i] / 2)); 
+            }
+        }
+        
+        bubbleFrames.push({
+            name: 'frame' + f,
+            data: [{ x: bX, y: bY, text: bText, marker: { size: bSize, color: '#0dcaf0', opacity: 0.7, line: {color: '#fff', width: 1} } }]
+        });
+
+        let sliceIdx = Math.floor((f + 1) * allPrices.length / numFrames);
+        scatterFrames.push({
+            name: 'frame' + f,
+            data: [{
+                x: allRatingsFull.slice(0, sliceIdx).map(r => r + (Math.random() * 0.4 - 0.2)),
+                y: allPrices.slice(0, sliceIdx),
+                text: allTitlesFull.slice(0, sliceIdx)
+            }]
+        });
+    }
+
+    Plotly.newPlot('animatedBubbleChart', [{
+        x: bubbleFrames[0].data[0].x, y: bubbleFrames[0].data[0].y, text: bubbleFrames[0].data[0].text, mode: 'markers', marker: bubbleFrames[0].data[0].marker
+    }], {
+        ...sharedLayout, xaxis: { title: 'Rating (1 to 5 Stars)', range: [0.5, 5.5], gridcolor: isDark ? '#444' : '#e5e5e5' }, yaxis: { title: 'Price (£)', range: [0, 100], gridcolor: isDark ? '#444' : '#e5e5e5' }
+    }).then(function() {
+        Plotly.addFrames('animatedBubbleChart', bubbleFrames);
+        Plotly.animate('animatedBubbleChart', null, { loop: true, frame: { duration: 1500, redraw: false }, transition: { duration: 1000, easing: 'cubic-in-out' } });
+    });
+
+    Plotly.newPlot('animatedScatterChart', [{
+        x: scatterFrames[0].data[0].x, y: scatterFrames[0].data[0].y, text: scatterFrames[0].data[0].text, mode: 'markers', marker: { size: 7, color: '#dc3545', opacity: 0.6 }
+    }], {
+        ...sharedLayout, xaxis: { title: 'Rating (1 to 5 Stars)', range: [0.5, 5.5], gridcolor: isDark ? '#444' : '#e5e5e5' }, yaxis: { title: 'Price (£)', range: [0, 100], gridcolor: isDark ? '#444' : '#e5e5e5' }
+    }).then(function() {
+        Plotly.addFrames('animatedScatterChart', scatterFrames);
+        Plotly.animate('animatedScatterChart', null, { loop: true, frame: { duration: 400, redraw: false }, transition: { duration: 0 } });
+    });
+
+    // --------------------------------------------------------
+    // NEW: ADVANCED VISUALIZATIONS
+    // --------------------------------------------------------
+    const titleLengths = {{ title_lengths | tojson }};
+
+    // 1. 3D Scatter Plot
+    Plotly.newPlot('scatter3dChart', [{
+        x: allRatingsFull,
+        y: allPrices,
+        z: titleLengths,
+        text: allTitlesFull,
+        mode: 'markers',
+        type: 'scatter3d',
+        marker: { 
+            size: 5, 
+            color: allPrices, 
+            colorscale: 'Viridis', 
+            opacity: 0.8 
+        }
+    }], {
+        ...sharedLayout,
+        margin: { t: 0, b: 0, l: 0, r: 0 },
+        scene: {
+            xaxis: { title: 'Rating' },
+            yaxis: { title: 'Price (£)' },
+            zaxis: { title: 'Title Length (Chars)' }
+        }
+    }, {responsive: true});
+
+    // 2. Statistical Box Plot
+    Plotly.newPlot('boxPlotChart', [{
+        x: allRatingsFull,
+        y: allPrices,
+        type: 'box',
+        boxpoints: 'all', // Show all points next to the box
+        jitter: 0.3,
+        pointpos: -1.8,
+        marker: { color: '#198754' },
+        name: 'Price Variance'
+    }], {
+        ...sharedLayout,
+        xaxis: { title: 'Star Rating', gridcolor: isDark ? '#444' : '#e5e5e5' },
+        yaxis: { title: 'Price (£)', gridcolor: isDark ? '#444' : '#e5e5e5' }
+    }, {responsive: true});
+
+</script>
+</body>
+</html>
