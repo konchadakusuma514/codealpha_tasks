@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}AI Salary Predictor & Scenario Simulator{% endblock %}
+{% block page_title %}AI Salary Predictor & Simulator{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Prediction Form -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 p-4 h-100">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="badge bg-primary-subtle text-primary p-2 rounded-3">
+                    <i class="fa-solid fa-wand-magic-sparkles fs-5"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">Predict Expected Compensation</h4>
+                    <small class="text-muted">Machine Learning Multi-Parameter Regression</small>
+                </div>
+            </div>
+
+            <form method="POST" action="/predictor" class="mt-2">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold"><i class="fa-solid fa-briefcase text-primary me-1"></i> Job Title / AI Role</label>
+                    <select name="job_title" class="form-select select-custom" required>
+                        <option value="" disabled {% if not form_data.job_title %}selected{% endif %}>Select AI role...</option>
+                        {% for job in dropdowns.job_titles %}
+                        <option value="{{ job }}" {% if form_data.job_title == job %}selected{% endif %}>{{ job }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-star text-warning me-1"></i> Experience Tier</label>
+                        <select name="experience_level" class="form-select select-custom" required>
+                            {% for exp in dropdowns.experience_levels %}
+                            <option value="{{ exp.code }}" {% if form_data.experience_level == exp.code %}selected{% endif %}>{{ exp.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-earth-americas text-success me-1"></i> Company Country</label>
+                        <select name="location" class="form-select select-custom" required>
+                            <option value="" disabled {% if not form_data.location %}selected{% endif %}>Select country...</option>
+                            {% for loc in dropdowns.locations %}
+                            <option value="{{ loc }}" {% if form_data.location == loc %}selected{% endif %}>{{ loc }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-building text-info me-1"></i> Company Size</label>
+                        <select name="company_size" class="form-select select-custom">
+                            {% for sz in dropdowns.company_sizes %}
+                            <option value="{{ sz.code }}" {% if form_data.company_size == sz.code %}selected{% endif %}>{{ sz.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-laptop-house text-purple me-1"></i> Work Arrangement</label>
+                        <select name="remote_ratio" class="form-select select-custom">
+                            {% for rem in dropdowns.remote_options %}
+                            <option value="{{ rem.value }}" {% if form_data.remote_ratio|string == rem.value|string %}selected{% endif %}>{{ rem.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-industry text-secondary me-1"></i> Target Industry</label>
+                        <select name="industry" class="form-select select-custom">
+                            <option value="" {% if not form_data.industry %}selected{% endif %}>Auto-detect (Industry Average)</option>
+                            {% for ind in dropdowns.industries %}
+                            <option value="{{ ind }}" {% if form_data.industry == ind %}selected{% endif %}>{{ ind }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold"><i class="fa-solid fa-brain text-danger me-1"></i> ML Algorithm</label>
+                        <select name="model_name" class="form-select select-custom">
+                            {% for m in available_models %}
+                            <option value="{{ m }}" {% if form_data.model_name == m %}selected{% endif %}>{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fs-5 fw-semibold shadow-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles me-2"></i> Compute Prediction & Simulation
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Result & Explainability -->
+    <div class="col-lg-6">
+        {% if prediction and not prediction.error %}
+        <div class="card shadow-sm border-0 rounded-4 p-4 text-white bg-dark mb-4 position-relative overflow-hidden">
+            <div class="prediction-glow"></div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="badge bg-primary bg-opacity-75 px-3 py-2 rounded-pill font-xs">
+                    <i class="fa-solid fa-robot me-1"></i> {{ prediction.model_used }} Model
+                </span>
+                <span class="badge bg-success bg-opacity-75 px-3 py-2 rounded-pill font-xs">
+                    <i class="fa-solid fa-bullseye me-1"></i> {{ prediction.metrics.r2 }}% Accuracy ($R^2$)
+                </span>
+            </div>
+
+            <div class="text-center my-3">
+                <span class="text-white-50 fs-6 text-uppercase fw-semibold tracking-wider">Estimated Base Salary (USD)</span>
+                <h1 class="display-3 fw-bold text-success my-2">{{ prediction.predicted_salary_formatted }}</h1>
+                <p class="text-white-50 mb-0 font-sm">
+                    <i class="fa-solid fa-shield-halved text-success me-1"></i> Confidence Range: <strong class="text-white">{{ prediction.salary_range.formatted }}</strong>
+                </p>
+            </div>
+
+            <!-- Feature Importance Weights -->
+            <div class="bg-dark-subtle p-3 rounded-3 mt-3">
+                <h6 class="fw-bold text-white-50 mb-2 font-xs text-uppercase"><i class="fa-solid fa-sliders me-1"></i> Feature Weight Contributions</h6>
+                <div class="row g-2">
+                    {% for feat in prediction.feature_contributions %}
+                    <div class="col-6">
+                        <div class="d-flex justify-content-between small text-white-50 mb-1">
+                            <span>{{ feat.feature }}</span>
+                            <span class="fw-bold text-white">{{ feat.importance }}%</span>
+                        </div>
+                        <div class="progress progress-xs">
+                            <div class="progress-bar bg-primary" style="width: {{ feat.importance }}%"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- What-If Career Scenario Uplift Simulator -->
+        {% if scenarios and scenarios.scenarios %}
+        <div class="card shadow-sm border-0 rounded-4 p-4">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-bolt-lightning text-warning me-2"></i> What-If Career Uplift Simulator</h5>
+            <div class="row g-3">
+                {% for sc in scenarios.scenarios %}
+                <div class="col-12">
+                    <div class="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="scenario-icon bg-primary-subtle text-primary rounded-circle p-2 text-center">
+                                <i class="fa-solid {{ sc.icon }}"></i>
+                            </div>
+                            <div>
+                                <span class="badge bg-secondary-subtle text-secondary font-xs mb-1">{{ sc.badge }}</span>
+                                <h6 class="fw-bold mb-0">{{ sc.title }}</h6>
+                                <small class="text-muted">Estimated Pay: <strong>{{ sc.new_salary }}</strong></small>
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-success fs-6 fw-bold px-3 py-2 rounded-pill">{{ sc.uplift }}</span>
+                            <div class="text-muted font-xs mt-1">({{ sc.uplift_pct }})</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- Placeholder State -->
+        <div class="card shadow-sm border-0 rounded-4 p-5 h-100 d-flex flex-column justify-content-center align-items-center text-center bg-light">
+            <div class="mb-3 text-primary display-4">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Ready to Calculate Your Market Worth</h4>
+            <p class="text-muted max-w-400 mb-4">Select your AI role, experience level, and preferred location to generate instant ML compensation benchmarks and career trajectory simulations.</p>
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <span class="badge bg-primary-subtle text-primary p-2">Random Forest Ensemble</span>
+                <span class="badge bg-success-subtle text-success p-2">What-If Career Uplifts</span>
+                <span class="badge bg-info-subtle text-info p-2">SHAP Explainability</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- API Reference Card -->
+<div class="card shadow-sm border-0 rounded-4 p-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="fw-bold mb-0"><i class="fa-solid fa-code text-primary me-2"></i> Embed Prediction API in Your Apps</h5>
+        <a href="/api-docs" class="btn btn-outline-primary btn-sm rounded-pill">Open API Playground <i class="fa-solid fa-arrow-up-right-from-square ms-1"></i></a>
+    </div>
+    <div class="bg-dark text-light p-3 rounded-3 font-monospace small">
+        <span class="text-success fw-bold">POST</span> /api/predict &nbsp;|&nbsp; Payload: <span class="text-warning">{"job_title": "Data Scientist", "experience_level": "MI", "location": "United States", "remote_ratio": 100}</span>
+    </div>
+</div>
+{% endblock %}

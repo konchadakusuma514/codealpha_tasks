@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}AI Job Market Intelligence | Overview Dashboard{% endblock %}
+{% block page_title %}Executive Market Intelligence{% endblock %}
+
+{% block content %}
+<!-- Welcome & Quick Metrics Banner -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card banner-card text-white p-4 shadow-sm">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                <div>
+                    <h2 class="fw-bold mb-1">Global AI & Data Science Talent Index 🚀</h2>
+                    <p class="text-white-50 mb-0">Analyzing 15,000+ active positions across 25+ global technology hubs</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="/predictor" class="btn btn-light fw-semibold text-primary px-3 rounded-pill shadow-sm">
+                        <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Predict My Salary
+                    </a>
+                    <a href="/skills" class="btn btn-outline-light px-3 rounded-pill">
+                        <i class="fa-solid fa-bullseye me-1"></i> Gap Analyzer
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Grid -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-blue text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Total Jobs</span>
+                <i class="fa-solid fa-briefcase opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">{{ total_jobs }}</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">Live Postings</span>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-green text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Average Salary</span>
+                <i class="fa-solid fa-money-bill-trend-up opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">${{ average_salary }}</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">USD / Year</span>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-purple text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Median Salary</span>
+                <i class="fa-solid fa-chart-simple opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">${{ median_salary }}</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">50th Percentile</span>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-orange text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Max Compensation</span>
+                <i class="fa-solid fa-crown opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">${{ highest_salary }}</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">Peak Offering</span>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-red text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Remote Positions</span>
+                <i class="fa-solid fa-laptop-house opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">{{ remote_pct }}%</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">Global WFH</span>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="card kpi-card bg-gradient-teal text-white shadow-sm h-100 p-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-white-50 small fw-medium">Countries & Hubs</span>
+                <i class="fa-solid fa-globe opacity-75"></i>
+            </div>
+            <h2 class="fw-bold mb-0">{{ total_countries }}</h2>
+            <span class="badge bg-white bg-opacity-25 mt-2 align-self-start font-xs">{{ total_companies }} Companies</span>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Charts Row 1 -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-earth-americas text-primary me-2"></i> Top Hiring Countries & Avg Compensation</h5>
+                <span class="badge bg-primary-subtle text-primary">Volume vs Salary</span>
+            </div>
+            <div class="card-body">
+                <div id="chart1" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-money-bill-wave text-success me-2"></i> Global Salary Distribution & Percentiles</h5>
+                <span class="badge bg-success-subtle text-success">Histogram + Box</span>
+            </div>
+            <div class="card-body">
+                <div id="chart2" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Charts Row 2 -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-code text-danger me-2"></i> In-Demand AI Skills</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart3" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up text-info me-2"></i> Seniority Wage Curve</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart4" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-pie-chart text-warning me-2"></i> Industry Market Share</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart5" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Remote Work Impact & Live Data Preview -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-4">
+        <div class="card chart-card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 pt-3 px-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-network-wired text-purple me-2"></i> Work Model vs Compensation</h5>
+            </div>
+            <div class="card-body">
+                <div id="chart6" class="plotly-chart-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-0 d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2 pt-3 px-3">
+                <div>
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-table-list text-primary me-2"></i> Recent Job Market Feed</h5>
+                    <small class="text-muted">Explore active postings</small>
+                </div>
+                <div class="d-flex gap-2">
+                    <input type="text" id="searchInput" placeholder="Filter jobs..." class="form-control form-control-sm w-auto">
+                    <a href="/jobs" class="btn btn-primary btn-sm rounded-pill text-nowrap">View All Jobs <i class="fa-solid fa-arrow-right ms-1"></i></a>
+                </div>
+            </div>
+            <div class="card-body p-0 overflow-auto">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="dataTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Role</th>
+                                <th>Company</th>
+                                <th>Location</th>
+                                <th>Experience</th>
+                                <th>Salary (USD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in jobs %}
+                            <tr>
+                                <td class="fw-semibold text-primary">{{ job.job_title }}</td>
+                                <td>{{ job.company_name }}</td>
+                                <td><i class="fa-solid fa-location-dot text-muted font-xs me-1"></i>{{ job.company_location }}</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary">{{ job.experience_level }}</span></td>
+                                <td class="fw-bold text-success">${{ job.salary_usd }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-4 text-muted">No data available.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    var layout_opts = {responsive: true, margin: {t: 20, b: 30, l: 35, r: 15}};
+    
+    var graph1 = {{ graph1 | safe }};
+    Plotly.newPlot('chart1', graph1.data, graph1.layout || layout_opts, {displayModeBar: false});
+    
+    var graph2 = {{ graph2 | safe }};
+    Plotly.newPlot('chart2', graph2.data, graph2.layout || layout_opts, {displayModeBar: false});
+    
+    var graph3 = {{ graph3 | safe }};
+    Plotly.newPlot('chart3', graph3.data, graph3.layout || layout_opts, {displayModeBar: false});
+
+    var graph4 = {{ graph4 | safe }};
+    Plotly.newPlot('chart4', graph4.data, graph4.layout || layout_opts, {displayModeBar: false});
+
+    var graph5 = {{ graph5 | safe }};
+    Plotly.newPlot('chart5', graph5.data, graph5.layout || layout_opts, {displayModeBar: false});
+
+    var graph6 = {{ graph6 | safe }};
+    Plotly.newPlot('chart6', graph6.data, graph6.layout || layout_opts, {displayModeBar: false});
+</script>
+{% endblock %}

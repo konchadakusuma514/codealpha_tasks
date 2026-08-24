@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Live AI Job Board & Explorer{% endblock %}
+{% block page_title %}AI Job Board & Opportunity Explorer{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Filter Sidebar -->
+    <div class="col-lg-3">
+        <div class="card shadow-sm border-0 rounded-4 p-3 sticky-top top-80">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-filter text-primary me-2"></i> Filter Jobs</h5>
+                <a href="/jobs" class="text-decoration-none small text-muted">Reset</a>
+            </div>
+
+            <form method="GET" action="/jobs" id="jobFilterForm">
+                <!-- Search Query -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Keyword Search</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+                        <input type="text" name="q" value="{{ filters.q }}" class="form-control" placeholder="Company, skill, title...">
+                    </div>
+                </div>
+
+                <!-- Role Filter -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">AI Role</label>
+                    <select name="role" class="form-select form-select-sm select-custom">
+                        <option value="">All Roles</option>
+                        {% for r in dropdowns.job_titles %}
+                        <option value="{{ r }}" {% if filters.role == r %}selected{% endif %}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Location Filter -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Location / Country</label>
+                    <select name="location" class="form-select form-select-sm select-custom">
+                        <option value="">All Locations</option>
+                        {% for loc in dropdowns.locations %}
+                        <option value="{{ loc }}" {% if filters.location == loc %}selected{% endif %}>{{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Experience Filter -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Experience Level</label>
+                    <select name="experience" class="form-select form-select-sm select-custom">
+                        <option value="">All Tiers</option>
+                        {% for exp in dropdowns.experience_levels %}
+                        <option value="{{ exp.code }}" {% if filters.experience == exp.code %}selected{% endif %}>{{ exp.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Remote Work Filter -->
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Work Arrangement</label>
+                    <select name="remote" class="form-select form-select-sm select-custom">
+                        <option value="">All Work Models</option>
+                        <option value="100" {% if filters.remote == '100' %}selected{% endif %}>Fully Remote (100%)</option>
+                        <option value="50" {% if filters.remote == '50' %}selected{% endif %}>Hybrid (50%)</option>
+                        <option value="0" {% if filters.remote == '0' %}selected{% endif %}>On-Site (0%)</option>
+                    </select>
+                </div>
+
+                <!-- Min Salary Filter -->
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between small fw-semibold mb-1">
+                        <span>Min Salary (USD)</span>
+                        <span id="salValDisplay">${{ filters.min_salary|int }}</span>
+                    </div>
+                    <input type="range" name="min_salary" min="0" max="250000" step="10000" value="{{ filters.min_salary|default(0) }}" class="form-range" id="minSalSlider" oninput="document.getElementById('salValDisplay').innerText = '$' + Number(this.value).toLocaleString()">
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm w-100 py-2 fw-semibold rounded-3">
+                    <i class="fa-solid fa-arrows-rotate me-1"></i> Apply Filters
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Job Cards Listing -->
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">Showing {{ total_count }} Opportunities</h5>
+            <span class="badge bg-light text-dark">Page {{ page }} of {{ total_pages }}</span>
+        </div>
+
+        <div class="row g-3">
+            {% for job in jobs %}
+            <div class="col-12">
+                <div class="card job-card shadow-sm border-0 rounded-4 p-4 transition-card">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h5 class="fw-bold mb-0 text-primary">{{ job.job_title }}</h5>
+                                <span class="badge bg-secondary-subtle text-secondary font-xs">{{ job.experience_level }}</span>
+                                {% if job.remote_ratio == 100 or job.remote_ratio == '100' %}
+                                <span class="badge bg-success-subtle text-success font-xs"><i class="fa-solid fa-laptop me-1"></i>Remote</span>
+                                {% elif job.remote_ratio == 50 or job.remote_ratio == '50' %}
+                                <span class="badge bg-info-subtle text-info font-xs">Hybrid</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted small">
+                                <i class="fa-solid fa-building me-1"></i><strong>{{ job.company_name }}</strong> &nbsp;•&nbsp; 
+                                <i class="fa-solid fa-location-dot me-1"></i>{{ job.company_location }} &nbsp;•&nbsp; 
+                                <i class="fa-solid fa-industry me-1"></i>{{ job.industry }}
+                            </div>
+                        </div>
+
+                        <div class="text-md-end">
+                            <h3 class="fw-bold text-success mb-0">${{ job.salary_usd }}</h3>
+                            <small class="text-muted">USD / Year</small>
+                        </div>
+                    </div>
+
+                    <!-- Required Skills -->
+                    {% if job.required_skills %}
+                    <div class="d-flex flex-wrap gap-1 align-items-center mb-3">
+                        <span class="text-muted font-xs me-1">Skills:</span>
+                        {% for sk in job.required_skills.split(', ') %}
+                        <span class="badge bg-light text-dark border font-xs">{{ sk }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                        <small class="text-muted"><i class="fa-solid fa-clock me-1"></i>Posted: {{ job.posting_date|default('Recently') }}</small>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill bookmark-btn" data-id="{{ job.job_id }}" onclick="toggleBookmark(this, '{{ job.job_title }}', '{{ job.company_name }}')">
+                                <i class="fa-regular fa-bookmark"></i> Save
+                            </button>
+                            <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="alert('Quick apply link simulated for {{ job.company_name }}!')">
+                                Quick Apply <i class="fa-solid fa-arrow-up-right-from-square font-xs ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="card shadow-sm border-0 rounded-4 p-5 text-center bg-light">
+                    <h5 class="fw-bold text-muted mb-2">No matching job postings found</h5>
+                    <p class="text-muted small mb-3">Try widening your salary slider or removing filters.</p>
+                    <a href="/jobs" class="btn btn-outline-primary btn-sm mx-auto rounded-pill">Reset All Filters</a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <nav class="mt-4 d-flex justify-content-center">
+            <ul class="pagination pagination-sm">
+                <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page - 1 }}&role={{ filters.role }}&location={{ filters.location }}&experience={{ filters.experience }}&remote={{ filters.remote }}&q={{ filters.q }}&min_salary={{ filters.min_salary }}">Previous</a>
+                </li>
+                <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+                    <a class="page-link" href="?page={{ page + 1 }}&role={{ filters.role }}&location={{ filters.location }}&experience={{ filters.experience }}&remote={{ filters.remote }}&q={{ filters.q }}&min_salary={{ filters.min_salary }}">Next</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleBookmark(btn, title, company) {
+        let icon = btn.querySelector('i');
+        if (icon.classList.contains('fa-regular')) {
+            icon.classList.remove('fa-regular');
+            icon.classList.add('fa-solid', 'text-warning');
+            btn.classList.add('btn-light');
+            alert(`Saved "${title}" at ${company} to bookmarks!`);
+        } else {
+            icon.classList.remove('fa-solid', 'text-warning');
+            icon.classList.add('fa-regular');
+            btn.classList.remove('btn-light');
+        }
+    }
+</script>
+{% endblock %}

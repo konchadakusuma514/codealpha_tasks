@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}AI Skills Gap & Career Roadmap{% endblock %}
+{% block page_title %}Skills Gap & Resume Matcher{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Input Form & Skill Selector -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 rounded-4 p-4 h-100">
+            <div class="d-flex align-items-center gap-2 mb-3">
+                <div class="badge bg-purple-subtle text-purple p-2 rounded-3">
+                    <i class="fa-solid fa-bullseye fs-5"></i>
+                </div>
+                <div>
+                    <h4 class="fw-bold mb-0">Evaluate Your Skillset</h4>
+                    <small class="text-muted">Compare against 15,000+ AI Job Postings</small>
+                </div>
+            </div>
+
+            <form method="POST" action="/skills" id="skillsForm">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold"><i class="fa-solid fa-crosshairs text-primary me-1"></i> Target AI Position</label>
+                    <select name="target_role" class="form-select select-custom" required>
+                        <option value="" disabled {% if not target_role %}selected{% endif %}>Select target role...</option>
+                        {% for job in job_titles %}
+                        <option value="{{ job }}" {% if target_role == job %}selected{% endif %}>{{ job }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold"><i class="fa-solid fa-layer-group text-success me-1"></i> Quick-Select Your Active Skills</label>
+                    <div class="skill-chips-container d-flex flex-wrap gap-1 p-2 bg-light rounded-3 border max-h-180 overflow-auto" id="skillChips">
+                        {% for sk in available_skills %}
+                        <button type="button" class="btn btn-sm btn-outline-secondary skill-chip" data-skill="{{ sk }}" onclick="toggleSkillChip(this, '{{ sk }}')">
+                            + {{ sk }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold"><i class="fa-solid fa-file-lines text-info me-1"></i> Selected Skills or Resume Text</label>
+                    <textarea name="user_skills" id="userSkillsInput" class="form-control" rows="4" placeholder="e.g. Python, PyTorch, Docker, SQL, Git, MLOps...">{{ input_skills_str }}</textarea>
+                    <small class="text-muted">You can also paste raw resume text here; our NLP extractor will parse technical competencies.</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fs-5 fw-semibold shadow-sm">
+                    <i class="fa-solid fa-calculator me-2"></i> Analyze Gap & Generate Roadmap
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Match Analysis & 30-60-90 Roadmap -->
+    <div class="col-lg-7">
+        {% if result %}
+        <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+            <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4 pb-3 border-bottom">
+                <div>
+                    <span class="badge bg-primary-subtle text-primary font-xs mb-1">Target Role</span>
+                    <h4 class="fw-bold mb-0 text-primary">{{ result.target_role }}</h4>
+                </div>
+                <div class="text-sm-end">
+                    <span class="badge bg-success font-md px-3 py-2 rounded-pill">
+                        <i class="fa-solid fa-circle-check me-1"></i> {{ result.match_percentage }}% Match
+                    </span>
+                </div>
+            </div>
+
+            <!-- Progress Meter -->
+            <div class="mb-4">
+                <div class="d-flex justify-content-between small fw-bold mb-1">
+                    <span>Role Compatibility</span>
+                    <span>{{ result.match_percentage }}%</span>
+                </div>
+                <div class="progress progress-md">
+                    <div class="progress-bar {% if result.match_percentage >= 70 %}bg-success{% elif result.match_percentage >= 40 %}bg-warning{% else %}bg-danger{% endif %}" style="width: {{ result.match_percentage }}%"></div>
+                </div>
+            </div>
+
+            <!-- Skills Comparison Tags -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3 bg-success-subtle border border-success-subtle h-100">
+                        <h6 class="fw-bold text-success mb-2"><i class="fa-solid fa-check me-1"></i> Matched Competencies ({{ result.matched_skills|length }})</h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for sk in result.matched_skills %}
+                            <span class="badge bg-success">{{ sk }}</span>
+                            {% else %}
+                            <span class="text-muted small">No exact core overlaps identified.</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="p-3 rounded-3 bg-danger-subtle border border-danger-subtle h-100">
+                        <h6 class="fw-bold text-danger mb-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> High-Impact Missing Skills ({{ result.missing_core_skills|length }})</h6>
+                        <div class="d-flex flex-wrap gap-1">
+                            {% for sk in result.missing_core_skills %}
+                            <span class="badge bg-danger">{{ sk }}</span>
+                            {% else %}
+                            <span class="badge bg-success">All Core Skills Mastered!</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estimated Salary Boost Banner -->
+            <div class="card bg-gradient-purple text-white p-3 rounded-3 mb-4 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="fw-bold mb-0"><i class="fa-solid fa-arrow-trend-up me-2"></i> Estimated Market Value Uplift</h6>
+                        <small class="text-white-50">Potential annual salary increase upon mastering missing core skills</small>
+                    </div>
+                    <h2 class="fw-bold mb-0">{{ result.estimated_salary_boost }}</h2>
+                </div>
+            </div>
+
+            <!-- 30-60-90 Day Upskilling Roadmap -->
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-road text-primary me-2"></i> 30-60-90 Day Personalized Learning Roadmap</h5>
+            <div class="roadmap-timeline">
+                {% for phase in result.roadmap %}
+                <div class="roadmap-step p-3 mb-3 rounded-3 border bg-light">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0 text-primary">{{ phase.phase }}</h6>
+                    </div>
+                    <p class="text-muted small mb-2"><strong>Core Focus:</strong> {{ phase.focus }}</p>
+                    <ul class="mb-0 small ps-3">
+                        {% for milestone in phase.milestones %}
+                        <li class="mb-1 text-secondary">{{ milestone }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Placeholder Empty State -->
+        <div class="card shadow-sm border-0 rounded-4 p-5 h-100 d-flex flex-column justify-content-center align-items-center text-center bg-light">
+            <div class="mb-3 text-purple display-4">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h4 class="fw-bold mb-2">Ready for Career Optimization</h4>
+            <p class="text-muted max-w-400 mb-4">Choose a target AI position and select your current skillset to unlock your real-time compatibility score, missing skill priorities, and 90-day learning curriculum.</p>
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+                <span class="badge bg-purple-subtle text-purple p-2">Skill Premium Analysis</span>
+                <span class="badge bg-success-subtle text-success p-2">Resume NLP Extractor</span>
+                <span class="badge bg-primary-subtle text-primary p-2">Structured Roadmap</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function toggleSkillChip(btn, skillName) {
+        let input = document.getElementById("userSkillsInput");
+        let currentSkills = input.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+        
+        let index = currentSkills.findIndex(s => s.toLowerCase() === skillName.toLowerCase());
+        if (index > -1) {
+            currentSkills.splice(index, 1);
+            btn.classList.remove("btn-primary", "text-white");
+            btn.classList.add("btn-outline-secondary");
+            btn.innerText = "+ " + skillName;
+        } else {
+            currentSkills.push(skillName);
+            btn.classList.remove("btn-outline-secondary");
+            btn.classList.add("btn-primary", "text-white");
+            btn.innerText = "✓ " + skillName;
+        }
+        
+        input.value = currentSkills.join(", ");
+    }
+
+    // Auto-highlight active chips on page load
+    document.addEventListener("DOMContentLoaded", function() {
+        let input = document.getElementById("userSkillsInput");
+        if(input && input.value) {
+            let active = input.value.split(',').map(s => s.trim().toLowerCase());
+            document.querySelectorAll(".skill-chip").forEach(btn => {
+                let sk = btn.getAttribute("data-skill").toLowerCase();
+                if(active.includes(sk)) {
+                    btn.classList.remove("btn-outline-secondary");
+                    btn.classList.add("btn-primary", "text-white");
+                    btn.innerText = "✓ " + btn.getAttribute("data-skill");
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

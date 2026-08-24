@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Benchmark Comparator | Role & Country Analysis{% endblock %}
+{% block page_title %}Side-by-Side Benchmark Comparator{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm border-0 rounded-4 p-4">
+            <h4 class="fw-bold mb-3"><i class="fa-solid fa-scale-balanced text-primary me-2"></i> Compare AI Career Benchmarks</h4>
+            
+            <form method="POST" action="/compare" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Comparison Mode</label>
+                    <select name="compare_type" id="compareType" class="form-select select-custom" onchange="updateCompareDropdowns()">
+                        <option value="role" {% if compare_type == 'role' %}selected{% endif %}>Role vs. Role</option>
+                        <option value="location" {% if compare_type == 'location' %}selected{% endif %}>Country vs. Country</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold" id="labelA">Target Option A</label>
+                    <select name="item_a" id="selectA" class="form-select select-custom" required>
+                        <!-- Dynamic Options populated by JS -->
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold" id="labelB">Target Option B</label>
+                    <select name="item_b" id="selectB" class="form-select select-custom" required>
+                        <!-- Dynamic Options populated by JS -->
+                    </select>
+                </div>
+
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100 py-2">
+                        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if comparison %}
+<div class="row g-4 mb-4">
+    <!-- Item A Card -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 p-4 h-100 border-top border-4 border-primary">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="badge bg-primary-subtle text-primary font-xs">Option A</span>
+                <span class="badge bg-light text-dark">{{ comparison.item_a.total_jobs }} Active Postings</span>
+            </div>
+
+            <h3 class="fw-bold text-primary mb-1">{{ comparison.item_a.name }}</h3>
+            <h1 class="display-5 fw-bold text-dark my-3">{{ comparison.item_a.median_salary }}</h1>
+            <p class="text-muted small mb-4">50th Percentile Median Base Compensation</p>
+
+            <div class="list-group list-group-flush mb-3">
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Average Salary:</span>
+                    <strong class="text-dark">{{ comparison.item_a.avg_salary }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Interquartile Range (25th - 75th):</span>
+                    <strong class="text-dark">{{ comparison.item_a.salary_spread }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Full Range (Min - Max):</span>
+                    <strong class="text-dark">{{ comparison.item_a.min_salary }} - {{ comparison.item_a.max_salary }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Remote Positions:</span>
+                    <span class="badge bg-success-subtle text-success">{{ comparison.item_a.remote_pct }}</span>
+                </div>
+            </div>
+
+            <h6 class="fw-bold mt-3 mb-2 font-xs text-uppercase text-muted">Top Required Technologies</h6>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+                {% for sk in comparison.item_a.top_skills %}
+                <span class="badge bg-secondary-subtle text-dark">{{ sk }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Item B Card -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 p-4 h-100 border-top border-4 border-info">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="badge bg-info-subtle text-info font-xs">Option B</span>
+                <span class="badge bg-light text-dark">{{ comparison.item_b.total_jobs }} Active Postings</span>
+            </div>
+
+            <h3 class="fw-bold text-info mb-1">{{ comparison.item_b.name }}</h3>
+            <h1 class="display-5 fw-bold text-dark my-3">{{ comparison.item_b.median_salary }}</h1>
+            <p class="text-muted small mb-4">50th Percentile Median Base Compensation</p>
+
+            <div class="list-group list-group-flush mb-3">
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Average Salary:</span>
+                    <strong class="text-dark">{{ comparison.item_b.avg_salary }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Interquartile Range (25th - 75th):</span>
+                    <strong class="text-dark">{{ comparison.item_b.salary_spread }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Full Range (Min - Max):</span>
+                    <strong class="text-dark">{{ comparison.item_b.min_salary }} - {{ comparison.item_b.max_salary }}</strong>
+                </div>
+                <div class="list-group-item d-flex justify-content-between px-0">
+                    <span class="text-muted">Remote Positions:</span>
+                    <span class="badge bg-success-subtle text-success">{{ comparison.item_b.remote_pct }}</span>
+                </div>
+            </div>
+
+            <h6 class="fw-bold mt-3 mb-2 font-xs text-uppercase text-muted">Top Required Technologies</h6>
+            <div class="d-flex flex-wrap gap-1 mb-3">
+                {% for sk in comparison.item_b.top_skills %}
+                <span class="badge bg-secondary-subtle text-dark">{{ sk }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const rolesList = {{ job_titles | tojson | safe }};
+    const locsList = {{ locations | tojson | safe }};
+    const currentValA = "{{ val_a }}";
+    const currentValB = "{{ val_b }}";
+
+    function updateCompareDropdowns() {
+        const type = document.getElementById("compareType").value;
+        const selectA = document.getElementById("selectA");
+        const selectB = document.getElementById("selectB");
+        const list = (type === 'role') ? rolesList : locsList;
+
+        selectA.innerHTML = "";
+        selectB.innerHTML = "";
+
+        list.forEach((item, idx) => {
+            const optA = document.createElement("option");
+            optA.value = item;
+            optA.textContent = item;
+            if (item === currentValA || (!currentValA && idx === 0)) optA.selected = true;
+            selectA.appendChild(optA);
+
+            const optB = document.createElement("option");
+            optB.value = item;
+            optB.textContent = item;
+            if (item === currentValB || (!currentValB && idx === 1)) optB.selected = true;
+            selectB.appendChild(optB);
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", updateCompareDropdowns);
+</script>
+{% endblock %}

@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Developer REST API Documentation{% endblock %}
+{% block page_title %}Developer REST API Playground{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Endpoints List -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 rounded-4 p-4 mb-4">
+            <h5 class="fw-bold mb-3"><i class="fa-solid fa-server text-primary me-2"></i> Available API Endpoints</h5>
+            
+            <div class="list-group list-group-flush gap-2">
+                <button class="list-group-item list-group-item-action active rounded-3 p-3" onclick="selectEndpoint('predict')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-success font-xs">POST</span>
+                        <small class="text-white-50">/api/predict</small>
+                    </div>
+                    <div class="fw-bold mt-1 text-white">AI Salary Prediction</div>
+                </button>
+
+                <button class="list-group-item list-group-item-action rounded-3 p-3" onclick="selectEndpoint('simulate')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-success font-xs">POST</span>
+                        <small class="text-muted">/api/simulate</small>
+                    </div>
+                    <div class="fw-bold mt-1">Career What-If Simulator</div>
+                </button>
+
+                <button class="list-group-item list-group-item-action rounded-3 p-3" onclick="selectEndpoint('skills')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-success font-xs">POST</span>
+                        <small class="text-muted">/api/skills/match</small>
+                    </div>
+                    <div class="fw-bold mt-1">Skills Gap & Compatibility</div>
+                </button>
+
+                <button class="list-group-item list-group-item-action rounded-3 p-3" onclick="selectEndpoint('stats')">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="badge bg-primary font-xs">GET</span>
+                        <small class="text-muted">/api/market-stats</small>
+                    </div>
+                    <div class="fw-bold mt-1">Global Market Statistics</div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Interactive Request / Response Sandbox -->
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 rounded-4 p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold mb-0"><i class="fa-solid fa-play text-success me-2"></i> Live API Sandbox</h5>
+                <button class="btn btn-success btn-sm px-3 rounded-pill" onclick="executeApiTest()">
+                    <i class="fa-solid fa-paper-plane me-1"></i> Send Request
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label small fw-semibold">Endpoint URL</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text font-monospace" id="apiMethodBadge">POST</span>
+                    <input type="text" id="apiUrlInput" class="form-control font-monospace" value="/api/predict" readonly>
+                </div>
+            </div>
+
+            <!-- JSON Payload Box -->
+            <div class="mb-3" id="payloadContainer">
+                <label class="form-label small fw-semibold">JSON Request Body</label>
+                <textarea id="apiPayload" class="form-control font-monospace bg-dark text-light small" rows="7">{
+  "job_title": "Data Scientist",
+  "experience_level": "MI",
+  "location": "United States",
+  "company_size": "M",
+  "remote_ratio": 100,
+  "model_name": "Random Forest"
+}</textarea>
+            </div>
+
+            <!-- Response Box -->
+            <div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label class="form-label small fw-semibold mb-0">Response Output</label>
+                    <span class="badge bg-secondary font-xs" id="apiStatusBadge">Status: Ready</span>
+                </div>
+                <pre class="bg-dark text-success p-3 rounded-3 font-monospace small mb-0 max-h-250 overflow-auto" id="apiResponse"><code>// Click "Send Request" to test endpoint live...</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const samplePayloads = {
+        predict: {
+            method: 'POST',
+            url: '/api/predict',
+            payload: JSON.stringify({
+                "job_title": "Data Scientist",
+                "experience_level": "MI",
+                "location": "United States",
+                "company_size": "M",
+                "remote_ratio": 100,
+                "model_name": "Random Forest"
+            }, null, 2)
+        },
+        simulate: {
+            method: 'POST',
+            url: '/api/simulate',
+            payload: JSON.stringify({
+                "job_title": "Data Scientist",
+                "experience_level": "MI",
+                "location": "United States",
+                "company_size": "M",
+                "remote_ratio": 100
+            }, null, 2)
+        },
+        skills: {
+            method: 'POST',
+            url: '/api/skills/match',
+            payload: JSON.stringify({
+                "skills": "Python, SQL, PyTorch, Docker",
+                "target_role": "AI Research Scientist"
+            }, null, 2)
+        },
+        stats: {
+            method: 'GET',
+            url: '/api/market-stats',
+            payload: ""
+        }
+    };
+
+    let activeEndpoint = 'predict';
+
+    function selectEndpoint(key) {
+        activeEndpoint = key;
+        const info = samplePayloads[key];
+        document.getElementById('apiMethodBadge').innerText = info.method;
+        document.getElementById('apiUrlInput').value = info.url;
+        
+        const payloadBox = document.getElementById('payloadContainer');
+        if (info.method === 'GET') {
+            payloadBox.style.display = 'none';
+        } else {
+            payloadBox.style.display = 'block';
+            document.getElementById('apiPayload').value = info.payload;
+        }
+
+        document.querySelectorAll('.list-group-item').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    async function executeApiTest() {
+        const info = samplePayloads[activeEndpoint];
+        const statusBadge = document.getElementById('apiStatusBadge');
+        const responseBox = document.getElementById('apiResponse');
+
+        statusBadge.className = 'badge bg-warning font-xs';
+        statusBadge.innerText = 'Sending...';
+
+        try {
+            const opts = {
+                method: info.method,
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (info.method === 'POST') {
+                opts.body = document.getElementById('apiPayload').value;
+            }
+
+            const res = await fetch(info.url, opts);
+            const data = await res.json();
+
+            statusBadge.className = res.ok ? 'badge bg-success font-xs' : 'badge bg-danger font-xs';
+            statusBadge.innerText = `HTTP ${res.status}`;
+            responseBox.innerHTML = `<code>${JSON.stringify(data, null, 2)}</code>`;
+        } catch (err) {
+            statusBadge.className = 'badge bg-danger font-xs';
+            statusBadge.innerText = 'Error';
+            responseBox.innerHTML = `<code>Error: ${err.message}</code>`;
+        }
+    }
+</script>
+{% endblock %}
